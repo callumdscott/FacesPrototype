@@ -2,6 +2,11 @@ from PIL import Image
 from time import sleep
 import os
 import cv2
+import random
+from shutil import copy2
+import os.path
+from os import path
+import sys
 
 dirname = os.path.dirname(__file__)
 filepath = os.path.join(dirname, 'data', 'raw')
@@ -29,35 +34,67 @@ def get_dir_contents():
 def main():
     option = ""
     while option != "exit":
+        os.system('clear')
         display_title()
         display_instructions()
-        option = input()
+        option = input().split()
         if option is not None:
             execute_option(option)
 
 
 def display_title():
-    os.system('clear')
     print("\t**********************************************")
     print("\t********  Facial Recogniser Prototype ********")
     print("\t**********************************************")
 
 
 def display_instructions():
-    print("\n[")
+    # TODO: UPDATE INSTRUCTIONS
+    print("\n")
     print("Run 'help' for more information on commands or 'exit' to exit.")
 
+def scrape_faces():
+    x = 0
+    # load pre-trained classifier
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    # run face detector on files
+    for file in get_dir_contents():
+        image_path = os.path.join(filepath, file)
+        img = cv2.imread(image_path)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        face = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=3)
 
+        # crop images for faces
+        for (x, y, w, h) in face:
+            im = Image.open(image_path)
+            im = im.crop((x, y, x + w, y + h))
+
+        # save faces to folder "scraped faces"
+        x += 1
+        filename = f"face{x}.jpg"
+        im.save(os.path.join(filepath, "..", "scraped_faces", filename), "JPEG")
+
+def random_sort(total_groups):
+    pics = os.listdir(filepath)
+    # randomise list of images
+    random.shuffle(pics)
+    # folder creation
+    for i in range(1, (int(total_groups) + 1)):
+        if not (path.exists(os.path.join(filepath, "..", "groups", ("group" + str(i))))):
+            os.makedirs(os.path.join(filepath, "..", "groups", ("group" + str(i))))
+            os.chmod(os.path.join(filepath, "..", "groups", ("group" + str(i))), 0o777)
+    # spread random ordered pics to files
+    for i, pic in enumerate(pics):
+        if (i + 1) % 3 == 1:
+            copy2(os.path.join(filepath, pic), os.path.join(filepath, "..", "groups", "group1"))
+        if (i + 1) % 3 == 2:
+            copy2(os.path.join(filepath, pic), os.path.join(filepath, "..", "groups", "group2"))
+        if (i + 1) % 3 == 0:
+            copy2(os.path.join(filepath, pic), os.path.join(filepath, "..", "groups", "group3"))
 
 def execute_option(parameters):
 
-    #############################################
-    if isinstance(parameters, str):
-        choice = parameters
-    else:
-        choice = parameters[0]
-    #############################################
-
+    choice = parameters[0]
     if choice in commands_list:
         if choice == "show_image":
             image = Image.open(os.path.join(filepath, get_dir_contents()[0]))
@@ -71,27 +108,14 @@ def execute_option(parameters):
             # TODO: group images in folder referenced at index 0
 
         if choice == "scrape_faces":
-
-            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-            x = 0
-            for file in get_dir_contents():
-                image_path = os.path.join(filepath, file)
-                img = cv2.imread(image_path)
-                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                face = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=3)
-
-                for (x, y, w, h) in face:
-                    im = Image.open(image_path)
-                    im = im.crop((x, y, x + w, y + h))
-
-                x += 1
-                filename = f"face{x}.jpg"
-                print(filename)
-                im.save(os.path.join(filepath, "..", "scraped_faces", filename), "JPEG")
+            scrape_faces()
 
         if choice == "random_sort":
-            pass
             # TODO: random basic sort
+            random_sort(parameters[1])
+        if choice == "exit":
+            os.system('clear')
+            sys.exit()
 
     else:
         print(f"Input Error: {0}".format(parameters))
