@@ -4,7 +4,8 @@ import sample.recognition as recog
 import sample.images as imgs
 import sys
 from time import sleep
-import cv2 as cv
+import face_recognition
+import cv2
 
 
 def main():
@@ -61,7 +62,7 @@ def execute_option(parameters, image_set, recog_system, dir_nav):
         print("Loading images from " + dir_nav.get_target_directory())
         for path in dir_nav.get_image_collection():
             print(path)
-            image_set.add_image(cv.imread(path))
+            image_set.add_image(face_recognition.api.load_image_file(path, mode='RGB'))
         print("\n")
     # collects images from a given target directory
     elif parameters[0] == "load_images":
@@ -71,7 +72,7 @@ def execute_option(parameters, image_set, recog_system, dir_nav):
         print("Loading images from " + dir_nav.get_target_directory())
         for path in dir_nav.get_image_collection():
             print(path)
-            image_set.add_image(cv.imread(path))
+            image_set.add_image(face_recognition.api.load_image_file(path, mode='RGB'))
         print("\n")
     # mark directory as destination for saved files
     elif parameters[0] == "tag_dir":
@@ -80,12 +81,19 @@ def execute_option(parameters, image_set, recog_system, dir_nav):
         print("\n")
     #
     elif parameters[0] == "analyse_images":
-        image_set.scrape_faces()
-        image_set.standardize_size()
-        image_set.save_faces(dir_nav.get_destination_directory())
-        recog_system.add_first_person(image_set.get_image(0))
+        opencv_images = []
+        count = 1
+        image_cv = recog_system.add_first_person(image_set.get_image(0))
+        opencv_images.append(image_cv)
+
         for image in image_set.get_image_collection()[1:]:
-            recog_system.add_person(image)
+            opencv_images.append(recog_system.add_person(image))
+
+        for opencv_image in opencv_images:
+            cv2.imshow(f"image {count}", opencv_image)
+            count += 1
+        cv2.waitKey()
+        cv2.destroyAllWindows()
         group_list = recog_system.get_labelled_list()
         print("Groupings: ")
         print("\n")
