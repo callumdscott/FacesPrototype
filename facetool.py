@@ -5,8 +5,7 @@ import sample.images as imgs
 import sys
 from time import sleep
 import face_recognition
-import cv2
-
+import cv2 as cv
 
 def main():
     print('\033c')
@@ -38,23 +37,60 @@ def display_instructions():
 
 
 def execute_option(parameters, image_set, recog_system, dir_nav):
+    #
     # exit func.
     if parameters[0] == "exit":
         os.system('clear')
         sys.exit()
-    # navigate around directories
-    elif parameters[0] == "cd":
-        # going to parent dir
-        if parameters[1] == "..":
-            os.chdir('../')
-            dir_nav.set_working_directory(os.getcwd())
-            print(os.getcwd())
-        # going to child dir
-        else:
-            os.chdir(os.path.join(os.path.join(os.getcwd(), parameters[1])))
-            dir_nav.set_working_directory(os.getcwd())
-            print(os.getcwd())
+    #
+    # clears screen
+    elif parameters[0] == "clear":
+        os.system('clear')
+        display_title()
+        display_instructions()
+    #
+    # prints instructions
+    elif parameters[0] == "help":
+        print("\tBRIEF GUIDE")
         print("\n")
+        print("\n")
+        print("cd \t\t\t change directory (relative), next arg being foldername")
+        print("\n")
+        print("exit \t\t\t exits command line tool")
+        print("\n")
+        print("clear \t\t\t clears cli")
+        print("\n")
+        print("collect_images \t\t loads images located in current working directory")
+        print("\n")
+        print("load_images \t\t loads images, next arg being the target directory")
+        print("\n")
+        print("tag_dir \t\t sets the current working directory as the destination directory")
+        print("\n")
+        print("analyse_images \t\t classifies the images, and displays labelled images if '-show' flag is included")
+        print("\n")
+        print("file_images \t\t saves files to classified groups at tagged destination directory")
+        print("\n")
+        print("file_images_here \t saves files to classified groups, next arg being the destination directory")
+
+    #
+    # navigate around
+    elif parameters[0] == "cd":
+        if os.path.exists(parameters[1]):
+        # going to parent dir
+            if parameters[1] == "..":
+                os.chdir('../')
+                dir_nav.set_working_directory(os.getcwd())
+                print(os.getcwd())
+            # going to child dir
+            else:
+                os.chdir(os.path.join(os.path.join(os.getcwd(), parameters[1])))
+                dir_nav.set_working_directory(os.getcwd())
+                print(os.getcwd())
+            print("\n")
+        else:
+            print("Error: dir does not exist")
+            print("\n")
+    #
     # collects images from working directory
     elif parameters[0] == "collect_images":
         dir_nav.set_target_directory(dir_nav.get_working_directory())
@@ -79,7 +115,9 @@ def execute_option(parameters, image_set, recog_system, dir_nav):
         dir_nav.set_destination_directory(os.getcwd())
         print(os.getcwd() + " tagged as destination")
         print("\n")
-    #
+    # classifies images to groups
+    # printing unique list of groups
+    # if arg appended with -show, displays labelled image of face
     elif parameters[0] == "analyse_images":
         opencv_images = []
         count = 1
@@ -89,23 +127,33 @@ def execute_option(parameters, image_set, recog_system, dir_nav):
         for image in image_set.get_image_collection()[1:]:
             opencv_images.append(recog_system.add_person(image))
 
-        for opencv_image in opencv_images:
-            cv2.imshow(f"image {count}", opencv_image)
-            count += 1
-        cv2.waitKey()
-        cv2.destroyAllWindows()
-        group_list = recog_system.get_labelled_list()
+
         print("Groupings: ")
+        for group in recog_system.get_unique_list():
+            print(group)
         print("\n")
-        for person in group_list:
-            print(person)
-        print("\n")
-    elif parameters[0] == "group_images":
-        # parameters[1] is the destination dir
-        pass
+
+        if len(parameters) == 2 and parameters[1] == "-show":
+            for opencv_image in opencv_images:
+                cv.imshow(f"image {count}", opencv_image)
+                count += 1
+                cv.waitKey()
+                cv.destroyAllWindows()
+    # saves images to tagged directory
+    # creating folder for images to be grouped to
+    elif parameters[0] == "file_images":
+        image_set.save_faces(dir_nav.get_destination_directory(), recog_system.get_unique_list(), recog_system.get_labelled_list())
+    # saves files to the the directory location provided as the second cmd line arg
+    # creating folder for images to be grouped to
+    elif parameters[0] == "file_images_here":
+        image_set.save_faces(parameters[1], recog_system.get_unique_list(),
+                             recog_system.get_labelled_list())
+    # exit command
     else:
-        os.system('clear')
-        sys.exit()
+        print("command not recognised...")
+        print("please try again...")
+        display_instructions()
+    #
 
 
 if __name__ == '__main__':

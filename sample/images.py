@@ -22,6 +22,7 @@ class ImageCollection:
     def get_image(self, i):
         return self.raw_images[i]
 
+    # NOT IN USE - SAVE IN CASE OF LATER USE
     def scrape_faces(self):
         images = []
         for image in self.get_image_collection():
@@ -34,6 +35,7 @@ class ImageCollection:
         self.clear()
         self.set_image_collection(images)
 
+    # NOT IN USE - SAVE IN CASE OF LATER USE
     def standardize_size(self):
         size = 1000
         images = []
@@ -45,10 +47,19 @@ class ImageCollection:
         self.clear()
         self.set_image_collection(images)
 
-    def save_faces(self, dest):
-        if not (path.exists(os.path.join(dest, "scraped"))):
-            os.makedirs(os.path.join(dest, "scraped"))
-            os.chmod(os.path.join(dest, "scraped"), 0o777)
-        print("saving files in " + os.path.join(dest, "scraped"))
-        for i, face in enumerate(self.raw_images):
-            cv.imwrite(os.path.join(dest, "scraped", ("image" + str(i)) + ".jpg"), face)
+    def save_faces(self, dest, classification_list, labelled_set):
+        for classification in classification_list:
+            destination_path = os.path.join(dest, classification)
+            if not (path.exists(destination_path)):
+                os.makedirs(destination_path)
+                os.chmod(destination_path, 0o777)
+            print("saving files in " + os.path.join(destination_path))
+        for i, group in enumerate(labelled_set):
+            self.convert_to_BGR()
+            destination_path = os.path.join(dest, group, ("image" + str(i)) + ".jpg")
+            cv.imwrite(destination_path, self.raw_images[i])
+
+    def convert_to_BGR(self):
+
+        for i, image in enumerate(self.raw_images):
+            self.raw_images[i] = cv.cvtColor(image, cv.COLOR_BGR2RGB)

@@ -1,4 +1,4 @@
-pillow
 numpy==1.19.3
 opencv-utils
 opencv-python
+face_recognition
