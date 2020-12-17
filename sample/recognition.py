@@ -78,11 +78,6 @@ class Recogniser():
 
         return image_cv
 
-
-    # TODO: group images with same label
-    # TODO: grouped images moved to new folder
-    # TODO: redo loop to group until none remain in image list
-
     def print_landmarks(self, image):
         face_landmarks_list = face_recognition.face_landmarks(image)
         for face_landmarks in face_landmarks_list:
