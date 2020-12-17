@@ -141,6 +141,7 @@ def execute_option(parameters, image_set, recog_system, dir_nav):
                 cv.destroyAllWindows()
     # saves images to tagged directory
     # creating folder for images to be grouped to
+    # BUG: smurfifies some images??
     elif parameters[0] == "file_images":
         image_set.save_faces(dir_nav.get_destination_directory(), recog_system.get_unique_list(), recog_system.get_labelled_list())
     # saves files to the the directory location provided as the second cmd line arg
