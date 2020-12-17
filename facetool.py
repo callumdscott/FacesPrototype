@@ -1,59 +1,33 @@
-from PIL import Image
-from time import sleep
 import os
-import cv2
-import random
-from shutil import copy2
-import os.path
-from os import path
+import sample.dir_tools as dir_tool
+import sample.recognition as recog
+import sample.images as imgs
 import sys
-import numpy as np
-from skimage.measure import compare_ssim as ssim
-
-dirname = os.path.dirname(__file__)
-filepath = os.path.join(dirname, 'data', 'raw')
-commands_list = ["exit", "random_sort", "show_image", "classify", "classify_and_sort", "scrape_faces", "compare_faces"]
-
-
-# Deliverables
-# classify images to groups
-
-# 1. load images from file and save faces [x]
-# 2. randomly group images on command line
-# 3. classify images to groups on cmd line
-# 4. display confidence rating for images in group
-# 5. label blocks with similarity scores
-
-def mse(image1, image2):
-    # mean square error formula
-    error = np.sum((image1.astype("float") - image2.astype("float")) ** 2) / (float(image1.shape[0] * image1[1]))
-    return error
-
-
-def set_directory(directory_path):
-    filepath = directory_path
-
-
-def get_dir_contents():
-    files = os.listdir(filepath)
-    return files
-
+from time import sleep
+import face_recognition
+import cv2 as cv
 
 def main():
+    print('\033c')
+    print('\x1bc')
+    images = imgs.ImageCollection()
+    recogniser = recog.Recogniser()
+    navigator = dir_tool.Manager(os.getcwd())
+
     option = ""
+    display_title()
+    display_instructions()
     while option != "exit":
-        os.system('clear')
-        display_title()
-        display_instructions()
-        option = input().split()
+        option = input(">> ").split()
         if option is not None:
-            execute_option(option)
+            execute_option(option, images, recogniser, navigator)
 
 
 def display_title():
     print("\t**********************************************")
     print("\t********  Facial Recogniser Prototype ********")
     print("\t**********************************************")
+    print("\n")
 
 
 def display_instructions():
@@ -62,148 +36,124 @@ def display_instructions():
     print("Run 'help' for more information on commands or 'exit' to exit.")
 
 
-def grid_crop(image, n, m):
-    h, w = image.shape[0:2]
-    print(str(h) + " " + str(w))
-    gridbox_height, gridbox_width = int(h / m), int(w / n)
-    image_grid = []
-    # nested for rows, inside columns
-    for j in range(m):
-        grid_row = []
-        for i in range(n):
-            left = i * gridbox_width
-            right = (i + 1) * gridbox_width
-            top = j * gridbox_height
-            bottom = (j + 1) * gridbox_height
-            # cropping boxes by row
-            gridbox = image[left:right, top:bottom]
-            grid_row.append(gridbox)
-        image_grid.append(grid_row)
-    return image_grid
+def execute_option(parameters, image_set, recog_system, dir_nav):
+    #
+    # exit func.
+    if parameters[0] == "exit":
+        os.system('clear')
+        sys.exit()
+    #
+    # clears screen
+    elif parameters[0] == "clear":
+        os.system('clear')
+        display_title()
+        display_instructions()
+    #
+    # prints instructions
+    elif parameters[0] == "help":
+        print("\tBRIEF GUIDE")
+        print("\n")
+        print("\n")
+        print("cd \t\t\t change directory (relative), next arg being foldername")
+        print("\n")
+        print("exit \t\t\t exits command line tool")
+        print("\n")
+        print("clear \t\t\t clears cli")
+        print("\n")
+        print("collect_images \t\t loads images located in current working directory")
+        print("\n")
+        print("load_images \t\t loads images, next arg being the target directory")
+        print("\n")
+        print("tag_dir \t\t sets the current working directory as the destination directory")
+        print("\n")
+        print("analyse_images \t\t classifies the images, and displays labelled images if '-show' flag is included")
+        print("\n")
+        print("file_images \t\t saves files to classified groups at tagged destination directory")
+        print("\n")
+        print("file_images_here \t saves files to classified groups, next arg being the destination directory")
+
+    #
+    # navigate around
+    elif parameters[0] == "cd":
+        if os.path.exists(parameters[1]):
+        # going to parent dir
+            if parameters[1] == "..":
+                os.chdir('../')
+                dir_nav.set_working_directory(os.getcwd())
+                print(os.getcwd())
+            # going to child dir
+            else:
+                os.chdir(os.path.join(os.path.join(os.getcwd(), parameters[1])))
+                dir_nav.set_working_directory(os.getcwd())
+                print(os.getcwd())
+            print("\n")
+        else:
+            print("Error: dir does not exist")
+            print("\n")
+    #
+    # collects images from working directory
+    elif parameters[0] == "collect_images":
+        dir_nav.set_target_directory(dir_nav.get_working_directory())
+        dir_nav.collect_images()
+        print("Loading images from " + dir_nav.get_target_directory())
+        for path in dir_nav.get_image_collection():
+            print(path)
+            image_set.add_image(face_recognition.api.load_image_file(path, mode='RGB'))
+        print("\n")
+    # collects images from a given target directory
+    elif parameters[0] == "load_images":
+        # parameters[1] is the target dir
+        dir_nav.set_target_directory(parameters[1])
+        dir_nav.collect_images()
+        print("Loading images from " + dir_nav.get_target_directory())
+        for path in dir_nav.get_image_collection():
+            print(path)
+            image_set.add_image(face_recognition.api.load_image_file(path, mode='RGB'))
+        print("\n")
+    # mark directory as destination for saved files
+    elif parameters[0] == "tag_dir":
+        dir_nav.set_destination_directory(os.getcwd())
+        print(os.getcwd() + " tagged as destination")
+        print("\n")
+    # classifies images to groups
+    # printing unique list of groups
+    # if arg appended with -show, displays labelled image of face
+    elif parameters[0] == "analyse_images":
+        opencv_images = []
+        count = 1
+        image_cv = recog_system.add_first_person(image_set.get_image(0))
+        opencv_images.append(image_cv)
+
+        for image in image_set.get_image_collection()[1:]:
+            opencv_images.append(recog_system.add_person(image))
 
 
-def compare_box(this_box, that_box):
-    similarity_score = ssim(this_box, that_box)
-    return similarity_score
-
-
-def compare_images(this_image_path, that_image_path, grid_size):
-    this_image = cv2.imread(this_image_path)
-    that_image = cv2.imread(that_image_path)
-    # convert to greyscale
-    this_image = cv2.cvtColor(this_image, cv2.COLOR_BGR2GRAY)
-    that_image = cv2.cvtColor(that_image, cv2.COLOR_BGR2GRAY)
-    # scrapes faces from image in opencv format
-    this_image = scrape_face(this_image)
-    that_image = scrape_face(that_image)
-    # scale faces
-    this_image = cv2.resize(this_image, (100, 100), interpolation=cv2.INTER_AREA)
-    that_image = cv2.resize(that_image, (100, 100), interpolation=cv2.INTER_AREA)
-    # split face into gridbox
-    this_image_grid = grid_crop(that_image, grid_size, grid_size)
-    that_image_grid = grid_crop(this_image, grid_size, grid_size)
-    comparison_map = []
-    # map comparisons to a n x n tensor for raw similarity and difference estimates
-
-    for i in range(grid_size):
-        comparison_row = []
-        for j in range(grid_size):
-            comparison_row.append(compare_box(this_image_grid[i][j], that_image_grid[i][j]))
-        comparison_map.append(comparison_row)
-
-    for i in range(grid_size):
-        print("similarity scores:")
-        for j in range(grid_size):
-            print(comparison_map[i][j])
+        print("Groupings: ")
+        for group in recog_system.get_unique_list():
+            print(group)
         print("\n")
 
-
-
-def scrape_face(image):
-    # load pre-trained classifier
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    # run face detector on greyscaled image
-    face = face_cascade.detectMultiScale(image, scaleFactor=1.3, minNeighbors=3)
-
-    # crop images for faces
-    for (x, y, w, h) in face:
-        image = image[y:y + h, x:x + w]
-    return image
-
-
-def scrape_faces():
-    counter = 0
-    # load pre-trained classifier
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    # run face detector on files
-    for file in get_dir_contents():
-        image_path = os.path.join(filepath, file)
-        img = cv2.imread(image_path)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        face = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=3)
-
-        # crop images for faces
-        for (x, y, w, h) in face:
-            im = Image.open(image_path)
-            im = im.crop((x, y, (x + w), (y + h)))
-
-        # save faces to folder "scraped faces"
-        counter += 1
-        filename = f"face{counter}.jpg"
-        print(os.getcwd())
-        im.save(os.path.join(filepath, "scraped_faces", filename), "JPEG")
-
-
-def random_sort(total_groups):
-    pics = os.listdir(filepath)
-    # randomise list of images
-    random.shuffle(pics)
-    # folder creation
-    for i in range(1, (int(total_groups) + 1)):
-        if not (path.exists(os.path.join(filepath, "..", "groups", ("group" + str(i))))):
-            os.makedirs(os.path.join(filepath, "..", "groups", ("group" + str(i))))
-            os.chmod(os.path.join(filepath, "..", "groups", ("group" + str(i))), 0o777)
-    # spread random ordered pics to files
-    for i, pic in enumerate(pics):
-        if (i + 1) % 3 == 1:
-            copy2(os.path.join(filepath, pic), os.path.join(filepath, "..", "groups", "group1"))
-        if (i + 1) % 3 == 2:
-            copy2(os.path.join(filepath, pic), os.path.join(filepath, "..", "groups", "group2"))
-        if (i + 1) % 3 == 0:
-            copy2(os.path.join(filepath, pic), os.path.join(filepath, "..", "groups", "group3"))
-
-
-def execute_option(parameters):
-    choice = parameters[0]
-    if choice in commands_list:
-        if choice == "show_image":
-            image = Image.open(os.path.join(filepath, get_dir_contents()[0]))
-            image.show()
-            # TODO: display image referenced at index 0
-        elif choice == "classify":
-            parameters[1]
-            # TODO: group images in folder referenced at index 0
-        elif choice == "classify_and_sort":
-            parameters[1]
-            # TODO: group images in folder referenced at index 0
-
-        elif choice == "compare_faces":
-            image1 = os.path.join(filepath, get_dir_contents()[3])
-            image2 = os.path.join(filepath, get_dir_contents()[8])
-            compare_images(image1, image2, 5)
-
-        elif choice == "scrape_faces":
-            scrape_faces()
-
-        elif choice == "random_sort":
-            # TODO: random basic sort
-            random_sort(parameters[1])
-        else:
-            os.system('clear')
-            sys.exit()
+        if len(parameters) == 2 and parameters[1] == "-show":
+            for opencv_image in opencv_images:
+                cv.imshow(f"image {count}", opencv_image)
+                count += 1
+                cv.waitKey()
+                cv.destroyAllWindows()
+    # saves images to tagged directory
+    # creating folder for images to be grouped to
+    elif parameters[0] == "file_images":
+        image_set.save_faces(dir_nav.get_destination_directory(), recog_system.get_unique_list(), recog_system.get_labelled_list())
+    # saves files to the the directory location provided as the second cmd line arg
+    # creating folder for images to be grouped to
+    elif parameters[0] == "file_images_here":
+        image_set.save_faces(parameters[1], recog_system.get_unique_list(),
+                             recog_system.get_labelled_list())
+    # exit command
     else:
-        print(f"Input Error: {0}".format(parameters))
-        raise Exception("That is not a valid command")
+        print("command not recognised...")
+        print("please try again...")
+        display_instructions()
+    #
 
 
 if __name__ == '__main__':
