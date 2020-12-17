@@ -7,6 +7,7 @@ from time import sleep
 import face_recognition
 import cv2 as cv
 
+
 def main():
     print('\033c')
     print('\x1bc')
@@ -31,7 +32,6 @@ def display_title():
 
 
 def display_instructions():
-    # TODO: UPDATE INSTRUCTIONS
     print("\n")
     print("Run 'help' for more information on commands or 'exit' to exit.")
 
@@ -154,7 +154,15 @@ def execute_option(parameters, image_set, recog_system, dir_nav):
         print("command not recognised...")
         print("please try again...")
         display_instructions()
-    #
+    # nest steps incl. mapping landmarks to heatmap for analysing the most important classification features
+    # TODO: GROUP HEATMAP
+    # TODO: normalise facial landmarks
+    # TODO: create blank heatmap NxN of face
+    # TODO: map landmarks onto heatmap grid
+    # TODO: get an average of each landmark point
+    # TODO: set colours by smallest euclidean distance being darkest, as most similar
+    # TODO: make heatmap transparent
+    # TODO: overlay scraped face with heatmap
 
 
 if __name__ == '__main__':
